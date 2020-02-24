@@ -1,5 +1,5 @@
 pod 'SwiftyCam', :git => 'https://github.com/NathanWalker/SwiftyCam.git', :branch => 'feature/swift-4.2'
-pod "QBImagePickerController"
+pod "QBImagePickerController", :git => 'https://github.com/flypapertech/QBImagePicker.git'
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
