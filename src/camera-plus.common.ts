@@ -4,7 +4,7 @@
  * Version 1.1.0                                                   team@nStudio.io
  **********************************************************************************/
 
-import { ContentView } from 'tns-core-modules/ui/content-view';
+import { ContentView } from '@nativescript/core';
 import { CameraPlus as CameraPlusDefinition } from '.';
 
 export class CameraUtil {
@@ -322,7 +322,7 @@ export abstract class CameraPlusBase extends ContentView implements CameraPlusDe
       eventName,
       object: this,
       data,
-      message: msg
+      message: msg,
     });
   }
 }
@@ -364,7 +364,7 @@ export enum CameraVideoQuality {
   MAX_2160P = '2160p',
   HIGHEST = 'highest',
   LOWEST = 'lowest',
-  QVGA = 'qvga'
+  QVGA = 'qvga',
 }
 
 export interface IVideoOptions {
@@ -382,10 +382,10 @@ export interface IVideoOptions {
 export function GetSetProperty() {
   return (target, propertyKey: string) => {
     Object.defineProperty(target, propertyKey, {
-      get: function() {
+      get: function () {
         return this['_' + propertyKey];
       },
-      set: function(value) {
+      set: function (value) {
         if (this['_' + propertyKey] === value) {
           return;
         }
@@ -397,7 +397,7 @@ export function GetSetProperty() {
         this['_' + propertyKey] = value;
       },
       enumerable: true,
-      configurable: true
+      configurable: true,
     });
   };
 }
