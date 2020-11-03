@@ -171,10 +171,10 @@ export class CameraPlus extends CameraPlusBase {
     }
   }
 
-  initNativeView() {
+  public initNativeView() {
     super.initNativeView();
     this.on(View.layoutChangedEvent, this._onLayoutChangeListener);
-    const listenerImpl = (co as any).fitcom.fancycamera.CameraEventListenerUI.extend({
+    const listenerImpl = (co.fitcom.fancycamera.CameraEventListenerUI as any).extend({
       owner: null,
       onCameraCloseUI(): void {},
       async onPhotoEventUI(event: co.fitcom.fancycamera.PhotoEvent) {
