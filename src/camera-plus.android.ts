@@ -3,15 +3,19 @@
  *
  * Version 1.1.0                                                    team@nStudio.io
  **********************************************************************************/
-/// <reference path="./node_modules/tns-platform-declarations/android.d.ts" />
+
+/// <reference path="./node_modules/@nativescript/types-android/index.d.ts" />
 
 import * as permissions from 'nativescript-permissions';
-import * as app from 'tns-core-modules/application';
-import { ImageAsset } from 'tns-core-modules/image-asset';
-import { device } from 'tns-core-modules/platform';
-import { View } from 'tns-core-modules/ui/core/view/view';
-import * as types from 'tns-core-modules/utils/types';
-import * as utils from 'tns-core-modules/utils/utils';
+import {
+  AndroidActivityResultEventData,
+  AndroidApplication,
+  Application,
+  Device,
+  ImageAsset,
+  Utils,
+  View,
+} from '@nativescript/core';
 import {
   CameraPlusBase,
   CameraVideoQuality,
@@ -49,13 +53,15 @@ const RESULT_OK = -1;
 // AndroidX support
 
 // Snapshot-friendly functions
-const CAMERA = () => (android as any).Manifest.permission.CAMERA;
-const RECORD_AUDIO = () => (android as any).Manifest.permission.RECORD_AUDIO;
-const READ_EXTERNAL_STORAGE = () => (android as any).Manifest.permission.READ_EXTERNAL_STORAGE;
-const WRITE_EXTERNAL_STORAGE = () => (android as any).Manifest.permission.WRITE_EXTERNAL_STORAGE;
+const CAMERA = () => android.Manifest.permission.CAMERA;
+const RECORD_AUDIO = () => android.Manifest.permission.RECORD_AUDIO;
+const READ_EXTERNAL_STORAGE = () => android.Manifest.permission.READ_EXTERNAL_STORAGE;
+const WRITE_EXTERNAL_STORAGE = () => android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+
 // Since these device.* properties resolve directly to the android.* namespace,
 // the snapshot will fail if they resolve during import, so must be done via a function
-const DEVICE_INFO_STRING = () => `device: ${device.manufacturer} ${device.model} on SDK: ${device.sdkVersion}`;
+const DEVICE_INFO_STRING = () => `Device: ${Device.manufacturer} ${Device.model} on SDK: ${Device.sdkVersion}`;
+
 export class CameraPlus extends CameraPlusBase {
   // @GetSetProperty() public camera: android.hardware.Camera;
   // Snapshot-friendly, since the decorator will include the snapshot-unknown object "android"
@@ -85,7 +91,7 @@ export class CameraPlus extends CameraPlusBase {
   @GetSetProperty()
   public isRecording: boolean;
   public events: ICameraPlusEvents;
-  private _nativeView;
+  private _nativeView: android.widget.RelativeLayout;
   private _owner: WeakRef<any>;
   private _mediaRecorder: android.media.MediaRecorder;
   private _textureSurface: android.view.Surface;
@@ -259,7 +265,7 @@ export class CameraPlus extends CameraPlusBase {
    */
   public createNativeView() {
     // create the Android RelativeLayout
-    app.android.on('activityRequestPermissions', this._permissionListener);
+    Application.android.on('activityRequestPermissions', this._permissionListener);
     this._nativeView = new android.widget.RelativeLayout(this._context);
     this._camera = new com.github.triniwiz.fancycamera.FancyCamera(this._context);
     (this._camera as any).setLayoutParams(
@@ -292,7 +298,7 @@ export class CameraPlus extends CameraPlusBase {
     }
   }
 
-  initNativeView() {
+  public initNativeView() {
     super.initNativeView();
     this.on(View.layoutChangedEvent, this._onLayoutChangeListener);
     const listenerImpl = (com as any).github.triniwiz.fancycamera.CameraEventListenerUI.extend({
@@ -326,7 +332,7 @@ export class CameraPlus extends CameraPlusBase {
         let shouldKeepAspectRatio;
         let shouldAutoSquareCrop = owner.autoSquareCrop;
 
-        const density = utils.layout.getDisplayDensity();
+        const density = Utils.layout.getDisplayDensity();
         if (options) {
           confirmPic = options.confirm ? true : false;
           confirmPicRetakeText = options.confirmRetakeText ? options.confirmRetakeText : owner.confirmRetakeText;
@@ -334,7 +340,7 @@ export class CameraPlus extends CameraPlusBase {
           saveToGallery = options.saveToGallery ? true : false;
           reqWidth = options.width ? options.width * density : 0;
           reqHeight = options.height ? options.height * density : reqWidth;
-          shouldKeepAspectRatio = types.isNullOrUndefined(options.keepAspectRatio) ? true : options.keepAspectRatio;
+          shouldKeepAspectRatio = Utils.isNullOrUndefined(options.keepAspectRatio) ? true : options.keepAspectRatio;
           shouldAutoSquareCrop = !!options.autoSquareCrop;
         } else {
           // use xml property getters or their defaults
@@ -422,7 +428,7 @@ export class CameraPlus extends CameraPlusBase {
   disposeNativeView() {
     CLog('disposeNativeView.');
     this.off(View.layoutChangedEvent, this._onLayoutChangeListener);
-    app.android.off('activityRequestPermissions', this._permissionListener);
+    Application.android.off('activityRequestPermissions', this._permissionListener);
     this.releaseCamera();
     super.disposeNativeView();
   }
@@ -574,7 +580,7 @@ export class CameraPlus extends CameraPlusBase {
           if (!options) {
             options = {
               showImages: true,
-              showVideos: this.isVideoEnabled()
+              showVideos: this.isVideoEnabled(),
             };
           }
 
@@ -614,68 +620,87 @@ export class CameraPlus extends CameraPlusBase {
             intent.putExtra('android.intent.extra.ALLOW_MULTIPLE', true);
           }
 
-          // activityResult event
-          const onImagePickerResult = args => {
-            if (args.requestCode === RESULT_CODE_PICKER_IMAGES && args.resultCode === RESULT_OK) {
+          const onImagePickerResultEventListener = (event: AndroidActivityResultEventData) => {
+            if (event.requestCode === RESULT_CODE_PICKER_IMAGES && event.resultCode === RESULT_OK) {
               try {
-                const selectedImages = [];
-                const data = args.intent;
-                const clipData = data.getClipData();
+                const data: android.content.Intent = event.intent;
+                const selectedImages = this.getSelectedImages(data);
 
-                if (clipData !== null) {
-                  for (let i = 0; i < clipData.getItemCount(); i++) {
-                    const clipItem = clipData.getItemAt(i);
-                    const uri = clipItem.getUri();
-                    const selectedAsset = new SelectedAsset(uri);
-                    const asset = new ImageAsset(selectedAsset.android);
-                    selectedImages.push(asset);
-                  }
-                } else {
-                  const uri = data.getData();
-                  const path = uri.getPath();
-                  const selectedAsset = new SelectedAsset(uri);
-                  const asset = new ImageAsset(selectedAsset.android);
-                  selectedImages.push(asset);
-                }
-
-                app.android.off(app.AndroidApplication.activityResultEvent, onImagePickerResult);
-                resolve(selectedImages);
                 this.sendEvent(CameraPlus.imagesSelectedEvent, selectedImages);
-                return; // yay
-              } catch (e) {
-                CLog(e);
-                app.android.off(app.AndroidApplication.activityResultEvent, onImagePickerResult);
-                reject(e);
-                this.sendEvent(CameraPlus.errorEvent, e, 'Error with the image picker result.');
-                return;
+
+                resolve(selectedImages);
+              } catch (error) {
+                CLog(error);
+                this.sendEvent(CameraPlus.errorEvent, error, 'Error with the image picker result.');
+                reject(error);
               }
             } else {
-              app.android.off(app.AndroidApplication.activityResultEvent, onImagePickerResult);
-              reject(`Image picker activity result code ${args.resultCode}`);
-              return;
+              const error = new Error(`Image picker activity result code ${event.resultCode}`);
+              this.sendEvent(CameraPlus.errorEvent, error, error.message);
+              reject(error);
             }
+
+            // Cleanup, remove bound listener.
+            Application.android.off(AndroidApplication.activityResultEvent, onImagePickerResultEventListener);
           };
 
-          // set the onImagePickerResult for the intent
-          app.android.on(app.AndroidApplication.activityResultEvent, onImagePickerResult);
-          // start the intent
-          app.android.foregroundActivity.startActivityForResult(intent, RESULT_CODE_PICKER_IMAGES);
+          // Bind listener
+          Application.android.on(AndroidApplication.activityResultEvent, onImagePickerResultEventListener);
+
+          // Start the intent
+          Application.android.foregroundActivity.startActivityForResult(intent, RESULT_CODE_PICKER_IMAGES);
         };
 
         // Ensure storage permissions
-        const hasPerm = this.hasStoragePermissions();
-        if (hasPerm === true) {
-          createThePickerIntent();
-        } else {
+        if (!this.hasStoragePermissions()) {
           permissions.requestPermissions([READ_EXTERNAL_STORAGE(), WRITE_EXTERNAL_STORAGE()]).then(() => {
-            createThePickerIntent();
+            if (!this.hasStoragePermissions()) {
+              const error = new Error('request for storage permissions denied');
+              this.sendEvent(CameraPlus.errorEvent, error, 'Error choosing an image from the device library.');
+              reject(error);
+            } else {
+              createThePickerIntent();
+            }
           });
+          return;
         }
+
+        createThePickerIntent();
       } catch (e) {
-        reject(e);
         this.sendEvent(CameraPlus.errorEvent, e, 'Error choosing an image from the device library.');
+        reject(e);
       }
     });
+  }
+
+  /**
+   * Collect images from intent and return a collection of Image Assets.
+   *
+   * @param intent
+   */
+  private getSelectedImages(intent: android.content.Intent): ImageAsset[] {
+    const selectedImages: ImageAsset[] = [];
+    const clipData = intent.getClipData();
+
+    const imageFromUri = (uri: globalAndroid.net.Uri) => {
+      const selectedAssetUri = new SelectedAsset(uri).fileUri;
+      return new ImageAsset(selectedAssetUri);
+    };
+
+    if (clipData !== null) {
+      for (let i = 0; i < clipData.getItemCount(); i++) {
+        const clipItem = clipData.getItemAt(i);
+        const uri = clipItem.getUri();
+        const asset = imageFromUri(uri);
+        selectedImages.push(asset);
+      }
+    } else {
+      const uri = intent.getData();
+      const asset = imageFromUri(uri);
+      selectedImages.push(asset);
+    }
+
+    return selectedImages;
   }
 
   /**
@@ -703,7 +728,7 @@ export class CameraPlus extends CameraPlusBase {
         .then(() => {
           resolve(true);
         })
-        .catch(err => {
+        .catch((err) => {
           this.sendEvent(CameraPlus.errorEvent, err, 'Error requesting Camera permissions.');
           reject(false);
         });
@@ -728,7 +753,7 @@ export class CameraPlus extends CameraPlusBase {
         .then(() => {
           resolve(true);
         })
-        .catch(err => {
+        .catch((err) => {
           this.sendEvent(CameraPlus.errorEvent, err, 'Error requesting Audio permission.');
           reject(false);
         });
@@ -753,7 +778,7 @@ export class CameraPlus extends CameraPlusBase {
         .then(() => {
           resolve(true);
         })
-        .catch(err => {
+        .catch((err) => {
           this.sendEvent(CameraPlus.errorEvent, err, 'Error requesting Storage permissions.');
           reject(false);
         });
@@ -780,7 +805,7 @@ export class CameraPlus extends CameraPlusBase {
         .then(() => {
           resolve(true);
         })
-        .catch(err => {
+        .catch((err) => {
           this.sendEvent(CameraPlus.errorEvent, err, 'Error requesting Video permissions.');
           reject(false);
         });
@@ -814,12 +839,7 @@ export class CameraPlus extends CameraPlusBase {
    * Check if the device has a camera
    */
   public isCameraAvailable() {
-    if (
-      utils.ad
-        .getApplicationContext()
-        .getPackageManager()
-        .hasSystemFeature('android.hardware.camera')
-    ) {
+    if (Utils.ad.getApplicationContext().getPackageManager().hasSystemFeature('android.hardware.camera')) {
       return true;
     } else {
       return false;
@@ -905,13 +925,13 @@ export class CameraPlus extends CameraPlusBase {
     const ref = new WeakRef(this);
     this._flashBtn.setOnClickListener(
       new android.view.View.OnClickListener({
-        onClick: args => {
+        onClick: (args) => {
           const owner = ref.get();
           if (owner) {
             owner.toggleFlash();
             owner._ensureCorrectFlashIcon();
           }
-        }
+        },
       })
     );
     const flashParams = new android.widget.RelativeLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
@@ -942,12 +962,12 @@ export class CameraPlus extends CameraPlusBase {
     const ref = new WeakRef(this);
     this._galleryBtn.setOnClickListener(
       new android.view.View.OnClickListener({
-        onClick: args => {
+        onClick: (args) => {
           const owner = ref.get();
           if (owner) {
             owner.chooseFromLibrary();
           }
-        }
+        },
       })
     );
     const galleryParams = new android.widget.RelativeLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
@@ -982,7 +1002,7 @@ export class CameraPlus extends CameraPlusBase {
           if (owner) {
             owner.toggleCamera();
           }
-        }
+        },
       })
     );
 
@@ -1012,18 +1032,18 @@ export class CameraPlus extends CameraPlusBase {
     const ref = new WeakRef(this);
     this._takePicBtn.setOnClickListener(
       new android.view.View.OnClickListener({
-        onClick: args => {
+        onClick: (args) => {
           CLog(`The default Take Picture event will attempt to save the image to gallery.`);
           const opts = {
             saveToGallery: true,
             confirm: this.confirmPhotos ? true : false,
-            autoSquareCrop: this.autoSquareCrop
+            autoSquareCrop: this.autoSquareCrop,
           };
           const owner = ref.get();
           if (owner) {
             owner.takePicture(opts);
           }
-        }
+        },
       })
     );
     const takePicParams = new android.widget.RelativeLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);

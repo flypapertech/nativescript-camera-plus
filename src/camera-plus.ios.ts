@@ -4,12 +4,9 @@
  * Version 1.1.0                                                    team@nStudio.io
  **********************************************************************************/
 
-import { Color } from 'tns-core-modules/color';
-import * as fs from 'tns-core-modules/file-system/file-system';
-import { ImageAsset } from 'tns-core-modules/image-asset';
-import * as platform from 'tns-core-modules/platform';
-import { View } from 'tns-core-modules/ui/core/view';
-import * as types from 'tns-core-modules/utils/types';
+/// <reference path="./node_modules/@nativescript/types-ios/index.d.ts" />
+
+import { Color, Device, File, ImageAsset, knownFolders, path, Utils, View } from '@nativescript/core';
 import {
   CameraPlusBase,
   CameraTypes,
@@ -18,7 +15,7 @@ import {
   GetSetProperty,
   ICameraOptions,
   IChooseOptions,
-  IVideoOptions
+  IVideoOptions,
 } from './camera-plus.common';
 
 export * from './camera-plus.common';
@@ -26,6 +23,7 @@ export { CameraVideoQuality, WhiteBalance } from './camera-plus.common';
 /**
  * Library image picker delegate (multiple or single)
  */
+@NativeClass()
 class QBImagePickerControllerDelegateImpl extends NSObject implements QBImagePickerControllerDelegate {
   public static ObjCProtocols = [QBImagePickerControllerDelegate];
 
@@ -56,7 +54,7 @@ class QBImagePickerControllerDelegateImpl extends NSObject implements QBImagePic
     if (options) {
       this._width = options.width;
       this._height = options.height;
-      this._keepAspectRatio = types.isNullOrUndefined(options.keepAspectRatio) ? true : options.keepAspectRatio;
+      this._keepAspectRatio = Utils.isNullOrUndefined(options.keepAspectRatio) ? true : options.keepAspectRatio;
     } else {
       this._keepAspectRatio = true; // always default to true
     }
@@ -110,7 +108,12 @@ class QBImagePickerControllerDelegateImpl extends NSObject implements QBImagePic
           manager.requestImageDataAndOrientationForAssetOptionsResultHandler(
             asset,
             requestOptions,
-            (imageData: NSData, dataUti: string, orientation: CGImagePropertyOrientation, info: NSDictionary<any, any>) => {
+            (
+              imageData: NSData,
+              dataUti: string,
+              orientation: CGImagePropertyOrientation,
+              info: NSDictionary<any, any>
+            ) => {
               const image = new UIImage({ data: imageData });
               const imageAsset = new ImageAsset(image);
               if (this._width) imageAsset.options.width = this._width;
@@ -120,8 +123,7 @@ class QBImagePickerControllerDelegateImpl extends NSObject implements QBImagePic
               next.call(this);
             }
           );
-        }
-        else {
+        } else {
           manager.requestImageForAssetTargetSizeContentModeOptionsResultHandler(
             asset,
             targetSize,
@@ -147,15 +149,15 @@ class QBImagePickerControllerDelegateImpl extends NSObject implements QBImagePic
           requestOptions,
           (videoAsset: AVAsset, audioMix, info) => {
             if (videoAsset.isKindOfClass(AVURLAsset.class())) {
-              const docsPath = fs.knownFolders.documents();
+              const docsPath = knownFolders.documents();
 
-              const pathParts = (<AVURLAsset>videoAsset).URL.toString().split(fs.path.separator);
+              const pathParts = (<AVURLAsset>videoAsset).URL.toString().split(path.separator);
               const filename = pathParts[pathParts.length - 1];
-              const localFilePath = fs.path.join(docsPath.path, 'camera-plus-videos', filename);
+              const localFilePath = path.join(docsPath.path, 'camera-plus-videos', filename);
 
               const targetURL = NSURL.fileURLWithPath(localFilePath);
 
-              if (fs.File.exists(localFilePath)) {
+              if (File.exists(localFilePath)) {
                 docsPath.getFile('camera-plus-videos/' + filename).remove();
               } else {
                 // make sure the folder exists, or else copyItemAtURLToURLError
@@ -190,6 +192,7 @@ class QBImagePickerControllerDelegateImpl extends NSObject implements QBImagePic
 /**
  * Take picture with camera delegate
  */
+@NativeClass()
 export class SwiftyDelegate extends NSObject implements SwiftyCamViewControllerDelegate {
   public static ObjCProtocols = [SwiftyCamViewControllerDelegate];
   private _owner: WeakRef<MySwifty>;
@@ -200,56 +203,56 @@ export class SwiftyDelegate extends NSObject implements SwiftyCamViewControllerD
     return delegate;
   }
 
-  swiftyCamDidFailToConfigure(swiftyCam: SwiftyCamViewController) {
+  public swiftyCamDidFailToConfigure(swiftyCam: SwiftyCamViewController) {
     CLog('swiftyCamDidFailToConfigure:');
   }
 
-  swiftyCamDidFailToRecordVideo(swiftyCam: SwiftyCamViewController, error: NSError) {
+  public swiftyCamDidFailToRecordVideo(swiftyCam: SwiftyCamViewController, error: NSError) {
     CLog('swiftyCamDidFailToRecordVideo:');
   }
 
-  swiftyCamNotAuthorized(swiftyCam: SwiftyCamViewController) {
+  public swiftyCamNotAuthorized(swiftyCam: SwiftyCamViewController) {
     CLog('swiftyCamNotAuthorized:');
   }
 
-  swiftyCamSessionDidStopRunning(swiftyCam: SwiftyCamViewController) {
+  public swiftyCamSessionDidStopRunning(swiftyCam: SwiftyCamViewController) {
     CLog('swiftyCamSessionDidStopRunning:');
   }
 
-  swiftyCamSessionDidStartRunning(swiftyCam: SwiftyCamViewController) {
+  public swiftyCamSessionDidStartRunning(swiftyCam: SwiftyCamViewController) {
     CLog('swiftyCamSessionDidStartRunning:');
     this._owner.get().doLayout();
   }
 
-  swiftyCamDidBeginRecordingVideo(swiftyCam: SwiftyCamViewController, camera: CameraSelection) {
+  public swiftyCamDidBeginRecordingVideo(swiftyCam: SwiftyCamViewController, camera: CameraSelection) {
     CLog('swiftyCamDidBeginRecordingVideo:', camera);
     this._owner.get().didStartRecording(camera);
   }
 
-  swiftyCamDidChangeZoomLevel(swiftyCam: SwiftyCamViewController, zoom: number) {
+  public swiftyCamDidChangeZoomLevel(swiftyCam: SwiftyCamViewController, zoom: number) {
     CLog('swiftyCamDidChangeZoomLevel:', zoom);
   }
 
-  swiftyCamDidFinishProcessVideoAt(swiftyCam: SwiftyCamViewController, url: NSURL) {
+  public swiftyCamDidFinishProcessVideoAt(swiftyCam: SwiftyCamViewController, url: NSURL) {
     CLog('swiftyCamDidFinishProcessVideoAt:', url);
     this._owner.get().recordingReady(url.path);
   }
 
-  swiftyCamDidFinishRecordingVideo(swiftyCam: SwiftyCamViewController, camera: CameraSelection) {
+  public swiftyCamDidFinishRecordingVideo(swiftyCam: SwiftyCamViewController, camera: CameraSelection) {
     CLog('swiftyCamDidFinishRecordingVideo:', camera);
     this._owner.get().didFinishRecording(camera);
   }
 
-  swiftyCamDidFocusAtPoint(swiftyCam: SwiftyCamViewController, point: CGPoint) {
+  public swiftyCamDidFocusAtPoint(swiftyCam: SwiftyCamViewController, point: CGPoint) {
     CLog('swiftyCamDidFocusAtPoint:', point);
   }
 
-  swiftyCamDidSwitchCameras(swiftyCam: SwiftyCamViewController, camera: CameraSelection) {
+  public swiftyCamDidSwitchCameras(swiftyCam: SwiftyCamViewController, camera: CameraSelection) {
     CLog('swiftyCamDidSwitchCameras:', camera);
     this._owner.get().didSwitchCamera(camera);
   }
 
-  swiftyCamDidTake(swiftyCam: SwiftyCamViewController, photo: UIImage) {
+  public swiftyCamDidTake(swiftyCam: SwiftyCamViewController, photo: UIImage) {
     CLog('swiftyCamDidTake:', photo);
     try {
       // UIImageWriteToSavedPhotosAlbum(photo, this._owner.get(), 'thisImage:hasBeenSavedInPhotoAlbumWithError:usingContextInfo:', null);
@@ -261,26 +264,27 @@ export class SwiftyDelegate extends NSObject implements SwiftyCamViewControllerD
   }
 }
 
+@NativeClass()
 export class MySwifty extends SwiftyCamViewController {
-  public static ObjCExposedMethods = {
-    switchCam: { returns: interop.types.void },
-    resetPreview: { returns: interop.types.void },
-    savePhoto: { returns: interop.types.void },
-    snapPicture: { returns: interop.types.void },
-    toggleFlash: { returns: interop.types.void },
-    openGallery: { returns: interop.types.void },
-    recordVideo: { returns: interop.types.void },
-    videoDidFinishSavingWithErrorContextInfo: {
-      returns: interop.types.void,
-      params: [NSString, NSError, interop.Pointer]
-    }
-    // 'deviceDidRotate': { returns: interop.types.void }
-    // 'thisImage:hasBeenSavedInPhotoAlbumWithError:usingContextInfo:': {
-    //   returns: interop.types.void,
-    //   params: [UIImage, NSError, interop.Pointer]
-    // }
-  };
-  private _owner: WeakRef<CameraPlus>;
+  // public static ObjCExposedMethods = {
+  //   switchCam: { returns: interop.types.void },
+  //   resetPreview: { returns: interop.types.void },
+  //   savePhoto: { returns: interop.types.void },
+  //   snapPicture: { returns: interop.types.void },
+  //   toggleFlash: { returns: interop.types.void },
+  //   openGallery: { returns: interop.types.void },
+  //   recordVideo: { returns: interop.types.void },
+  // videoDidFinishSavingWithErrorContextInfo: {
+  //   returns: interop.types.void,
+  //   params: [NSString, NSError, interop.Pointer],
+  // },
+  //   // 'deviceDidRotate': { returns: interop.types.void }
+  //   // 'thisImage:hasBeenSavedInPhotoAlbumWithError:usingContextInfo:': {
+  //   //   returns: interop.types.void,
+  //   //   params: [UIImage, NSError, interop.Pointer]
+  //   // }
+  // };
+  public _owner: WeakRef<CameraPlus>;
   private _snapPicOptions: ICameraOptions;
   private _enableVideo: boolean;
   private _videoOptions: IVideoOptions;
@@ -296,7 +300,9 @@ export class MySwifty extends SwiftyCamViewController {
 
   public static initWithOwner(owner: WeakRef<CameraPlus>, defaultCamera: CameraTypes = 'rear') {
     CLog('MySwifty initWithOwner');
-    const ctrl = <MySwifty>MySwifty.new();
+    const ctrl: MySwifty = MySwifty.new();
+
+    CLog('view', ctrl);
     CLog('ctrl', ctrl);
     ctrl._owner = owner;
     // set default camera
@@ -324,7 +330,7 @@ export class MySwifty extends SwiftyCamViewController {
     });
   }
 
-  viewDidLoad() {
+  public viewDidLoad(): void {
     CLog('MySwifty viewdidload');
     super.viewDidLoad();
     this.view.userInteractionEnabled = true;
@@ -334,7 +340,7 @@ export class MySwifty extends SwiftyCamViewController {
 
     // CLog('view.frame.size:', this.view.frame.size.width + 'x' + this.view.frame.size.height);
     // retain delegate in javascript to ensure garbage collector does not get it
-    this._swiftyDelegate = <any>SwiftyDelegate.initWithOwner(new WeakRef(this));
+    this._swiftyDelegate = SwiftyDelegate.initWithOwner(new WeakRef(this));
     this.cameraDelegate = this._swiftyDelegate;
     CLog('this.cameraDelegate:', this.cameraDelegate);
   }
@@ -347,17 +353,17 @@ export class MySwifty extends SwiftyCamViewController {
     nativeView.setNeedsLayout();
   }
 
-  viewDidLayoutSubviews() {
+  public viewDidLayoutSubviews() {
     CLog('MySwifty viewDidLayoutSubviews');
     super.viewDidLayoutSubviews();
   }
 
-  viewDidAppear(animated: boolean) {
+  public viewDidAppear(animated: boolean) {
     super.viewDidAppear(animated);
     CLog('MySwifty viewDidAppear');
   }
 
-  viewWillAppear(animated: boolean) {
+  public viewWillAppear(animated: boolean) {
     super.viewWillAppear(animated);
     CLog('MySwifty viewWillAppear');
   }
@@ -396,7 +402,7 @@ export class MySwifty extends SwiftyCamViewController {
         confirm: this._owner.get().confirmPhotos, // from property setter
         confirmRetakeText: this._owner.get().confirmRetakeText,
         confirmSaveText: this._owner.get().confirmSaveText,
-        saveToGallery: this._owner.get().saveToGallery
+        saveToGallery: this._owner.get().saveToGallery,
       };
     }
     this.takePhoto();
@@ -415,13 +421,13 @@ export class MySwifty extends SwiftyCamViewController {
         } else {
           this._videoOptions = {
             confirm: this._owner.get().confirmVideo, // from property setter
-            saveToGallery: this._owner.get().saveToGallery
+            saveToGallery: this._owner.get().saveToGallery,
           };
         }
-        if (!options.disableHEVC && parseFloat(platform.device.sdkVersion) >= 11) {
+        if (!this._videoOptions.disableHEVC && parseFloat(Device.sdkVersion) >= 11) {
           this.videoCodecType = AVVideoCodecTypeHEVC;
         }
-        switch (options ? options.quality : CameraVideoQuality.MAX_480P) {
+        switch (this._videoOptions.quality) {
           case CameraVideoQuality.MAX_2160P:
             this.videoQuality = VideoQuality.Resolution3840x2160;
             break;
@@ -447,7 +453,7 @@ export class MySwifty extends SwiftyCamViewController {
 
         const status = PHPhotoLibrary.authorizationStatus();
         if (status === PHAuthorizationStatus.NotDetermined) {
-          PHPhotoLibrary.requestAuthorization(status => {
+          PHPhotoLibrary.requestAuthorization(() => {
             this.startVideoRecording();
           });
         } else {
@@ -461,18 +467,22 @@ export class MySwifty extends SwiftyCamViewController {
     this._owner.get().sendEvent(CameraPlus.videoRecordingStartedEvent, camera);
   }
 
-  public recordingReady(path: string) {
-    if ((this._videoOptions && this._videoOptions.saveToGallery) || this._owner.get().saveToGallery) {
+  public recordingReady(recordingPath: string) {
+    CLog(`recordingReady path: ${recordingPath}`);
+    const configSaveToGallery = this._videoOptions.saveToGallery || this._owner.get().saveToGallery;
+    if (configSaveToGallery) {
+      CLog(`recordingReady saveToGallery ${configSaveToGallery}`);
+
       // TODO: discuss why callback handler(videoDidFinishSavingWithErrorContextInfo) does not emit event correctly - the path passed to the handler is the same as handled here so just go ahead and emit here for now
-      this._owner.get().sendEvent(CameraPlus.videoRecordingReadyEvent, path);
+      this._owner.get().sendEvent(CameraPlus.videoRecordingReadyEvent, recordingPath);
 
       const status = PHPhotoLibrary.authorizationStatus();
       if (status === PHAuthorizationStatus.Authorized) {
-        UISaveVideoAtPathToSavedPhotosAlbum(path, this, 'videoDidFinishSavingWithErrorContextInfo', null);
+        UISaveVideoAtPathToSavedPhotosAlbum(recordingPath, this, 'videoDidFinishSavingWithErrorContextInfo', null);
       }
     } else {
-      CLog(`video not saved to gallery but recording is at: ${path}`);
-      this._owner.get().sendEvent(CameraPlus.videoRecordingReadyEvent, path);
+      CLog(`video not saved to gallery but recording is at: ${recordingPath}`);
+      this._owner.get().sendEvent(CameraPlus.videoRecordingReadyEvent, recordingPath);
     }
   }
 
@@ -480,13 +490,13 @@ export class MySwifty extends SwiftyCamViewController {
     this._owner.get().sendEvent(CameraPlus.videoRecordingFinishedEvent, camera);
   }
 
-  public videoDidFinishSavingWithErrorContextInfo(path: string, error: NSError, contextInfo: any) {
+  public videoDidFinishSavingWithErrorContextInfo(vidPath: string, error: NSError, contextInfo: any) {
     if (error) {
       CLog('video save to camera roll error:');
       CLog(error);
       return;
     }
-    CLog(`video saved`, path);
+    CLog(`video saved`, vidPath);
 
     // ideally could just rely on this, but this will not emit the event (commenting for now and instead doing above in recordready - TODO: discuss why)
     // this._owner.get().sendEvent(CameraPlus.videoRecordingReadyEvent, path);
@@ -626,11 +636,11 @@ export class MySwifty extends SwiftyCamViewController {
       if (options) {
         reqWidth = options.width || reqWidth;
         reqHeight = options.height || reqHeight;
-        keepAspectRatio = types.isNullOrUndefined(options.keepAspectRatio) ? true : options.keepAspectRatio;
+        keepAspectRatio = Utils.isNullOrUndefined(options.keepAspectRatio) ? true : options.keepAspectRatio;
       } else {
         options = {
           showImages: true,
-          showVideos: this._enableVideo
+          showVideos: this._enableVideo,
         };
       }
 
@@ -639,7 +649,7 @@ export class MySwifty extends SwiftyCamViewController {
       if (reqWidth && reqHeight) {
         this._pickerDelegate = QBImagePickerControllerDelegateImpl.new().initWithCallbackAndOptions(
           new WeakRef(this),
-          result => {
+          (result) => {
             CLog('chosen from library:', result);
             this._owner.get().sendEvent(CameraPlus.imagesSelectedEvent, result);
             resolve(result);
@@ -647,11 +657,14 @@ export class MySwifty extends SwiftyCamViewController {
           { width: reqWidth, height: reqHeight, keepAspectRatio: keepAspectRatio }
         );
       } else {
-        this._pickerDelegate = QBImagePickerControllerDelegateImpl.new().initWithCallback(new WeakRef(this), result => {
-          CLog('chosen from library:', result);
-          this._owner.get().sendEvent(CameraPlus.imagesSelectedEvent, result);
-          resolve(result);
-        });
+        this._pickerDelegate = QBImagePickerControllerDelegateImpl.new().initWithCallback(
+          new WeakRef(this),
+          (result) => {
+            CLog('chosen from library:', result);
+            this._owner.get().sendEvent(CameraPlus.imagesSelectedEvent, result);
+            resolve(result);
+          }
+        );
       }
       imagePickerController.delegate = this._pickerDelegate;
       const galleryPickerMode = this._owner.get().galleryPickerMode;
@@ -684,7 +697,7 @@ export class MySwifty extends SwiftyCamViewController {
     });
   }
 
-  _addButtons() {
+  public _addButtons() {
     CLog('adding buttons...');
     const width = this.view.bounds.size.width;
     const height = this.view.bounds.size.height;
@@ -706,6 +719,7 @@ export class MySwifty extends SwiftyCamViewController {
     this._flashBtnHandler();
 
     if (this._owner.get().showGalleryIcon === true) {
+      CLog('adding show gallery button...');
       const galleryBtn = createButton(
         this,
         CGRectMake(20, height - 80, 50, 50),
@@ -719,6 +733,7 @@ export class MySwifty extends SwiftyCamViewController {
     }
 
     if (this._owner.get().showCaptureIcon) {
+      CLog('adding show capture button...');
       const heightOffset = this._owner.get().isIPhoneX ? 200 : 110;
       const picOutline = createButton(
         this,
@@ -745,6 +760,7 @@ export class MySwifty extends SwiftyCamViewController {
 
   private _flashBtnHandler() {
     if (this._owner.get().showFlashIcon) {
+      CLog('adding flash button...');
       if (this._flashBtn) this._flashBtn.removeFromSuperview();
       if (this.flashEnabled) {
         this._flashBtn = createButton(this, CGRectMake(20, 20, 50, 50), null, 'toggleFlash', null, createIcon('flash'));
@@ -772,6 +788,7 @@ export class CameraPlus extends CameraPlusBase {
 
   @GetSetProperty()
   public enableVideo: boolean;
+
   // library picker handling
   private _galleryMax: number = 3;
   private _galleryPickerWidth: number;
@@ -795,7 +812,7 @@ export class CameraPlus extends CameraPlusBase {
     return this.enableVideo === true || CameraPlus.enableVideo;
   }
 
-  createNativeView() {
+  public createNativeView() {
     // this._swifty.videoGravity = SwiftyCamVideoGravity.ResizeAspectFill;
     this._swifty.enableVideo = this.isVideoEnabled();
     // disable audio if no video support
@@ -803,14 +820,14 @@ export class CameraPlus extends CameraPlusBase {
     CLog('CameraPlus createNativeView');
     CLog('video enabled:', this.isVideoEnabled());
     CLog('default camera:', CameraPlus.defaultCamera);
-    CLog(this._swifty.view);
+    CLog('view:', this._swifty.view);
     this._swifty.view.autoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight;
     return this._swifty.view;
   }
 
-  private _onLayoutChangeFn(args) {
+  private _onLayoutChangeFn(args: any) {
     const size = this.getActualSize();
-    CLog('xml width/height:', size.width + 'x' + size.height);
+    CLog(`xml width/height: ${size.width}x${size.height}`);
     const frame = this._swifty.view.frame;
     this._swifty.view.frame = CGRectMake(frame.origin.x, frame.origin.y, size.width, size.height);
     this._swifty.previewLayer.frame = CGRectMake(frame.origin.x, frame.origin.y, size.width, size.height);
@@ -919,8 +936,11 @@ export class CameraPlus extends CameraPlusBase {
   /**
    * Record video
    */
-  public record(options?: IVideoOptions): Promise<any> {
-    this._swifty.recordVideo(options);
+  public record(options?: IVideoOptions): Promise<void> {
+    if (this.isVideoEnabled()) {
+      CLog(`Start Video Recording: ${options && JSON.stringify(options)}`);
+      this._swifty.recordVideo(options);
+    }
     return Promise.resolve();
   }
 
@@ -929,6 +949,7 @@ export class CameraPlus extends CameraPlusBase {
    */
   public stop(): void {
     if (this.isVideoEnabled()) {
+      CLog('Stop Video Recording');
       this._swifty.stopVideoRecording();
     }
   }
