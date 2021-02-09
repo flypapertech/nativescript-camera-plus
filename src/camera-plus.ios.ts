@@ -327,6 +327,10 @@ export class MySwifty extends SwiftyCamViewController {
   viewDidLoad() {
     CLog('MySwifty viewdidload');
     super.viewDidLoad();
+     const owner = this._owner && this._owner.get();
+     if (owner) {
+       owner._updatePhotoQuality();
+     }
     this.view.userInteractionEnabled = true;
     const doubleTapEnabled = this._owner.get().doubleTapCameraSwitch;
     this.doubleTapCameraSwitch = doubleTapEnabled;
@@ -594,17 +598,37 @@ export class MySwifty extends SwiftyCamViewController {
 
   public savePhoto() {
     if (this._photoToSave) {
-      if ((this._snapPicOptions && this._snapPicOptions.saveToGallery) || this._owner.get().saveToGallery) {
-        UIImageWriteToSavedPhotosAlbum(this._photoToSave, null, null, null);
-      }
       const asset = new ImageAsset(this._photoToSave);
+      const useCameraOptions = this._snapPicOptions ? this._snapPicOptions.useCameraOptions : false;
+      const handleSuccess = () => {
+        this._owner.get().sendEvent(CameraPlus.photoCapturedEvent, asset);
+        this.resetPreview();
+      };
+      if (!useCameraOptions) {
+        if ((this._snapPicOptions && this._snapPicOptions.saveToGallery) || this._owner.get().saveToGallery) {
+          UIImageWriteToSavedPhotosAlbum(this._photoToSave, null, null, null);
+        }
+      }
       if (this._snapPicOptions) {
         if (typeof this._snapPicOptions.keepAspectRatio === 'boolean') asset.options.keepAspectRatio = this._snapPicOptions.keepAspectRatio;
         if (typeof this._snapPicOptions.height === 'number') asset.options.height = this._snapPicOptions.height;
         if (typeof this._snapPicOptions.width === 'number') asset.options.width = this._snapPicOptions.width;
       }
-      this._owner.get().sendEvent(CameraPlus.photoCapturedEvent, asset);
-      this.resetPreview();
+      if (!useCameraOptions) {
+        handleSuccess();
+      } else {
+        if ((this._snapPicOptions && this._snapPicOptions.saveToGallery) || this._owner.get().saveToGallery) {
+          asset.getImageAsync((image, error) => {
+            if (image) {
+              UIImageWriteToSavedPhotosAlbum(image, null, null, null);
+              handleSuccess();
+            } else {
+              CLog(`Failed to save image: ${error}`);
+            }
+          });
+        }
+      }
+
     }
   }
 
@@ -808,6 +832,93 @@ export class CameraPlus extends CameraPlusBase {
     return this._swifty.view;
   }
 
+  private _cropByPreview: boolean;
+
+  public get cropByPreview () {
+    return this._cropByPreview;
+  }
+
+  public set cropByPreview(value: boolean) {
+    if (typeof value === 'string') {
+      value = Boolean(value);
+    }
+    if (typeof value === 'boolean') {
+      if (this._swifty) {
+        this._swifty.cropByPreview = value;
+      }
+    }
+
+    this._cropByPreview = value;
+  }
+
+  _updatePhotoQuality () {
+    if (this._swifty) {
+      switch (this._pictureQuality) {
+        case "3840x2160":
+          this._swifty.videoQuality = VideoQuality.Resolution3840x2160;
+          this._pictureQuality = "3840x2160";
+          break;
+          case "1920x1080":
+          this._swifty.videoQuality = VideoQuality.Resolution1920x1080;
+          this._pictureQuality = "1920x1080";
+          break;
+          case "1280x720":
+          this._swifty.videoQuality = VideoQuality.Resolution1280x720;
+          this._pictureQuality = "1280x720";
+          break;
+          case "640x480":
+          this._swifty.videoQuality = VideoQuality.Resolution640x480;
+          this._pictureQuality = "640x480";
+          break;
+          case "352x288":
+          this._swifty.videoQuality = VideoQuality.Resolution352x288;
+          this._pictureQuality = "352x288";
+          break;
+          case "Medium":
+          this._swifty.videoQuality = VideoQuality.Medium;
+          this._pictureQuality = "Medium";
+          break;
+          case "Low":
+          this._swifty.videoQuality = VideoQuality.Low;
+          this._pictureQuality = "Low";
+          break;
+          case "Photo":
+            this._swifty.videoQuality = VideoQuality.Photo;
+            this._pictureQuality = "Photo";
+            break;
+        default:
+          this._swifty.videoQuality = VideoQuality.High;
+          this._pictureQuality = "High";
+        break;
+      }
+    }
+  }
+
+  getAvailablePictureSizes(ratio?: string): string[] {
+    return [
+      "3840x2160",
+      "1920x1080",
+      "1280x720",
+      "640x480",
+      "352x288",
+      "Photo",
+      "High",
+      "Medium",
+      "Low"
+    ];
+  }
+
+  private _pictureQuality: string = "High";
+   // @ts-ignore
+   set pictureSize(value: string) {
+    this._pictureQuality = value;
+    this._updatePhotoQuality();
+  }
+
+  get pictureSize(): string {
+    return this._pictureQuality;
+  }
+
   private _onLayoutChangeFn(args) {
     const size = this.getActualSize();
     CLog('xml width/height:', size.width + 'x' + size.height);
@@ -823,6 +934,10 @@ export class CameraPlus extends CameraPlusBase {
   initNativeView() {
     CLog('initNativeView.');
     this.on(View.layoutChangedEvent, this._onLayoutChangeListener);
+    this._updatePhotoQuality();
+    if (this.cropByPreview) {
+      this._swifty.cropByPreview = this.cropByPreview;
+    }
     this._swifty.viewWillAppear(true);
   }
 
@@ -913,6 +1028,7 @@ export class CameraPlus extends CameraPlusBase {
    * Snap photo and display confirm save
    */
   public takePicture(options?: ICameraOptions): void {
+    this._updatePhotoQuality();
     this._swifty.snapPicture(options);
   }
 

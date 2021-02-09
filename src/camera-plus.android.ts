@@ -127,6 +127,7 @@ export class CameraPlus extends CameraPlusBase {
     return this.enableVideo === true || CameraPlus.enableVideo;
   }
 
+   // @ts-ignore
   get ratio() {
     return this._camera ? this._camera.getRatio() : '4:3';
   }
@@ -136,6 +137,7 @@ export class CameraPlus extends CameraPlusBase {
     }
   }
 
+   // @ts-ignore
   get zoom() {
     return this._camera ? this._camera.getZoom() : 0;
   }
@@ -199,31 +201,31 @@ export class CameraPlus extends CameraPlusBase {
       switch (this._camera.getWhiteBalance()) {
         case com.github.triniwiz.fancycamera.WhiteBalance.Cloudy:
           return WhiteBalance.Cloudy;
-          case com.github.triniwiz.fancycamera.WhiteBalance.Fluorescent:
+        case com.github.triniwiz.fancycamera.WhiteBalance.Fluorescent:
           return WhiteBalance.Fluorescent;
-          case com.github.triniwiz.fancycamera.WhiteBalance.Incandescent:
+        case com.github.triniwiz.fancycamera.WhiteBalance.Incandescent:
           return WhiteBalance.Incandescent;
-          case com.github.triniwiz.fancycamera.WhiteBalance.Shadow:
+        case com.github.triniwiz.fancycamera.WhiteBalance.Shadow:
           return WhiteBalance.Shadow;
-          case com.github.triniwiz.fancycamera.WhiteBalance.Sunny:
+        case com.github.triniwiz.fancycamera.WhiteBalance.Sunny:
           return WhiteBalance.Sunny;
-          case com.github.triniwiz.fancycamera.WhiteBalance.Twilight:
+        case com.github.triniwiz.fancycamera.WhiteBalance.Twilight:
           return WhiteBalance.Twilight;
-          case com.github.triniwiz.fancycamera.WhiteBalance.WarmFluorescent:
+        case com.github.triniwiz.fancycamera.WhiteBalance.WarmFluorescent:
           return WhiteBalance.WarmFluorescent;
-          default:
-            return WhiteBalance.Auto;
+        default:
+          return WhiteBalance.Auto;
       }
     }
     return WhiteBalance.Auto;
   }
 
-  getAvailablePictureSizes(ratio: string): { width: number, height: number }[] {
+  getAvailablePictureSizes(ratio: string): string[] {
     const sizes = [];
     if (this._camera && typeof ratio === 'string') {
       const nativeSizes: any = this._camera.getAvailablePictureSizes(ratio);
       for (const size of nativeSizes) {
-        sizes.push({ width: size.getWidth(), height: size.getHeight() });
+        sizes.push(`${size.getWidth()}x${size.getHeight()}`);
       }
     }
     return sizes;
@@ -459,6 +461,11 @@ export class CameraPlus extends CameraPlusBase {
         CLog('Application does not have permission to use Camera.');
         return;
       }
+
+      if (!!options.useCameraOptions && typeof options.width === 'number' && typeof options.height === 'number') {
+        (this._camera as any).setOverridePhotoWidth(options.width);
+        (this._camera as any).setOverridePhotoHeight(options.height);
+      }
       this._camera.setSaveToGallery(!!options.saveToGallery);
       this._camera.setAutoSquareCrop(!!options.autoSquareCrop);
       this._lastCameraOptions.push(options);
@@ -684,11 +691,8 @@ export class CameraPlus extends CameraPlusBase {
 
   public toggleFlash() {
     if (this._camera) {
-      if (this._camera.getFlashMode() !== com.github.triniwiz.fancycamera.CameraFlashMode.OFF) {
-        this._camera.setFlashMode(com.github.triniwiz.fancycamera.CameraFlashMode.ON);
-      } else {
-        this._camera.setFlashMode(com.github.triniwiz.fancycamera.CameraFlashMode.OFF);
-      }
+      // @ts-ignore
+      this._camera.toggleFlash();
     }
   }
 
