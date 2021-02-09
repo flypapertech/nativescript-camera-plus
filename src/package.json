@@ -1,5 +1,5 @@
 {
-  "name": "@nstudio/nativescript-camera-plus",
+  "name": "@flypapertech/nativescript-camera-plus",
   "version": "3.3.0",
   "description": "An advanced, embeddable camera for NativeScript.",
   "main": "camera-plus",
